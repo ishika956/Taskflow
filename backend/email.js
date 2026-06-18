@@ -1,11 +1,17 @@
 const nodemailer = require('nodemailer');
 
+console.log("GMAIL_USER:", process.env.GMAIL_USER);
+console.log(
+  "GMAIL_APP_PASS:",
+  process.env.GMAIL_APP_PASS ? "FOUND" : "MISSING"
+);
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASS,
-  },
+    pass: process.env.GMAIL_APP_PASS
+  }
 });
 
 // ── Task assigned email ────────────────────────────────────────────────────────
