@@ -3,7 +3,6 @@ const Invitation = require('../models/Invitation');
 const Workspace  = require('../models/Workspace');
 const User       = require('../models/User');
 const { protect } = require('../middleware/auth');
-const { sendInvitationEmail } = require('../email');
 
 const router = express.Router();
 
@@ -52,21 +51,35 @@ router.post('/', protect, async (req, res) => {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     });
 
-    // Send email
-    await sendInvitationEmail({
-      toEmail:       email,
-      workspaceName: workspace.name,
-      invitedByName: req.user.name,
-      role,
-      token,
-    });
-
-    res.status(201).json({ message: `Invitation sent to ${email}` });
+    res.status(201).json({
+  message: `Invitation created for ${email}`
+});
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });
   }
 });
+
+
+// ADD THIS HERE
+router.get('/my', protect, async (req, res) => {
+  try {
+    const invitations = await Invitation.find({
+      email: req.user.email,
+      status: 'Pending'
+    })
+    .populate('workspace', 'name')
+    .populate('invitedBy', 'name');
+
+    res.json(invitations);
+  } catch (err) {
+    res.status(500).json({
+      message: err.message
+    });
+  }
+});
+
+
 
 // ── GET /api/invitations/verify/:token — Check token validity (public) ────────
 // Frontend calls this first to show workspace name before login/register

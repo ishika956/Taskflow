@@ -30,6 +30,10 @@ export default function App() {
         <Route path="/board/:projectId" element={<Private><Board /></Private>} />
         <Route path="/settings"        element={<Private><Settings /></Private>} />
         <Route path="*"                element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="/invitations"
+          element={<Invitations />}
+        />
       </Routes>
     </AuthProvider>
   );
