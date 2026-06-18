@@ -19,6 +19,13 @@ const transporter = nodemailer.createTransport({
     pass: process.env.BREVO_SMTP_PASS,
   },
 });
+transporter.verify((error, success) => {
+  if (error) {
+    console.log("SMTP VERIFY ERROR:", error);
+  } else {
+    console.log("SMTP SERVER READY");
+  }
+});
 
 // ─────────────────────────────────────────────────────────────
 // Task Assignment Email
