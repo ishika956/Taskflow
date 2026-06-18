@@ -1,0 +1,19 @@
+# ─── Environment variables — NEVER commit these ─────────────────────────────
+.env
+.env.local
+.env.production
+
+# ─── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+
+# ─── Uploaded files (local storage) ─────────────────────────────────────────
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# ─── Build output ────────────────────────────────────────────────────────────
+frontend/dist/
+
+# ─── OS / Editor junk ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
