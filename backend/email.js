@@ -9,6 +9,8 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ── Task assigned email ────────────────────────────────────────────────────────
 const sendTaskAssignedEmail = async ({ toEmail, toName, taskTitle, projectName, assignedBy, deadline }) => {
+  console.log("sendInvitationEmail called");
+  console.log("Recipient:", toEmail);
   const deadlineText = deadline
     ? `<p><strong>Deadline:</strong> ${new Date(deadline).toDateString()}</p>` : '';
 
