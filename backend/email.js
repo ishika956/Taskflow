@@ -7,7 +7,7 @@ const sendTaskAssignedEmail = async ({ toEmail, toName, taskTitle, projectName, 
   const deadlineText = deadline
     ? `<p><strong>Deadline:</strong> ${new Date(deadline).toDateString()}</p>` : '';
 
-  await resend.emails.send({
+  const result = await resend.emails.send({
     from:    'TaskFlow <onboarding@resend.dev>',
     to:      toEmail,
     subject: `📋 You've been assigned: ${taskTitle}`,
@@ -28,6 +28,7 @@ const sendTaskAssignedEmail = async ({ toEmail, toName, taskTitle, projectName, 
         </div>
       </div>`,
   });
+  console.log("RESEND RESULT : ", result);
 };
 
 // ── Workspace invitation email ─────────────────────────────────────────────────
