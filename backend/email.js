@@ -18,8 +18,8 @@ const transporter = nodemailer.createTransport({
 const sendTaskAssignedEmail = async ({ toEmail, toName, taskTitle, projectName, assignedBy, deadline }) => {
   const deadlineText = deadline
     ? `<p><strong>Deadline:</strong> ${new Date(deadline).toDateString()}</p>` : '';
-
-  await transporter.sendMail({
+  try {
+  const info = await transporter.sendMail({
     from:    `"TaskFlow" <${process.env.GMAIL_USER}>`,
     to:      toEmail,
     subject: `📋 You've been assigned: ${taskTitle}`,
@@ -40,6 +40,13 @@ const sendTaskAssignedEmail = async ({ toEmail, toName, taskTitle, projectName, 
         </div>
       </div>`,
   });
+
+  console.log("Invitation email sent:", info.response);
+} catch (err) {
+  console.error("INVITATION EMAIL ERROR:", err);
+  throw err;
+}
+  
 };
 
 // ── Workspace invitation email ─────────────────────────────────────────────────
