@@ -6,6 +6,7 @@ import Dashboard    from './pages/Dashboard';
 import Board        from './pages/Board';
 import Settings     from './pages/Settings';
 import InviteAccept from './pages/InviteAccept';
+import Invitations from "./pages/Invitations";
 
 function Private({ children }) {
   const { user, loading } = useAuth();
