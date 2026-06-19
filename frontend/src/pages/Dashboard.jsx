@@ -25,14 +25,26 @@ export default function Dashboard() {
   const [showProjModal,  setShowProjModal]  = useState(false);
   const [showInvite,     setShowInvite]     = useState(false);
   const [showInviteList, setShowInviteList] = useState(false);
+  const [renameWsModal,  setRenameWsModal]  = useState(false);
+  const [renameProjModal,setRenameProjModal]= useState(false);
 
-  const [wsForm,     setWsForm]     = useState({ name: '', description: '' });
-  const [projForm,   setProjForm]   = useState({ name: '', description: '' });
-  const [inviteForm, setInviteForm] = useState({ email: '', role: 'Member' });
-  const [error,      setError]      = useState('');
-  const [inviteSent, setInviteSent] = useState(false);
+  const [wsForm,       setWsForm]       = useState({ name: '', description: '' });
+  const [projForm,     setProjForm]     = useState({ name: '', description: '' });
+  const [inviteForm,   setInviteForm]   = useState({ email: '', role: 'Member' });
+  const [renameWsForm, setRenameWsForm] = useState({ name: '', description: '' });
+  const [renameProjForm, setRenameProjForm] = useState({ _id: '', name: '', description: '' });
+  const [error,        setError]        = useState('');
+  const [inviteSent,   setInviteSent]   = useState(false);
+
+  const [projectMenuOpen, setProjectMenuOpen] = useState(null);
 
   useEffect(() => { fetchWorkspaces(); }, []);
+
+  useEffect(() => {
+    const close = () => setProjectMenuOpen(null);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, []);
 
   const fetchWorkspaces = async () => {
     try {
@@ -85,21 +97,18 @@ export default function Dashboard() {
     } catch (err) { setError(err.response?.data?.message || 'Failed'); }
   };
 
-  const createProject = async (e) => {
-    e.preventDefault(); setError('');
-    try {
-      const { data } = await api.post('/projects', { ...projForm, workspace: activeWs });
-      setProjects(prev => ({ ...prev, [activeWs]: [data, ...(prev[activeWs] || [])] }));
-      setShowProjModal(false); setProjForm({ name: '', description: '' });
-    } catch (err) { setError(err.response?.data?.message || 'Failed'); }
+  const openRenameWorkspace = () => {
+    setRenameWsForm({ name: activeWorkspace.name, description: activeWorkspace.description || '' });
+    setRenameWsModal(true);
+    setError('');
   };
 
-  const sendInvite = async (e) => {
-    e.preventDefault(); setError(''); setInviteSent(false);
+  const renameWorkspace = async (e) => {
+    e.preventDefault(); setError('');
     try {
-      await api.post('/invitations', { email: inviteForm.email, workspaceId: activeWs, role: inviteForm.role });
-      setInviteSent(true); setInviteForm({ email: '', role: 'Member' });
-      fetchInvites(activeWs);
+      const { data } = await api.put(`/workspaces/${activeWs}`, renameWsForm);
+      setWorkspaces(prev => prev.map(w => w._id === activeWs ? data : w));
+      setRenameWsModal(false);
     } catch (err) { setError(err.response?.data?.message || 'Failed'); }
   };
 
@@ -115,11 +124,69 @@ export default function Dashboard() {
     } catch (err) { alert(err.response?.data?.message || 'Failed'); }
   };
 
+  const createProject = async (e) => {
+    e.preventDefault(); setError('');
+    try {
+      const { data } = await api.post('/projects', { ...projForm, workspace: activeWs });
+      setProjects(prev => ({ ...prev, [activeWs]: [data, ...(prev[activeWs] || [])] }));
+      setShowProjModal(false); setProjForm({ name: '', description: '' });
+    } catch (err) { setError(err.response?.data?.message || 'Failed'); }
+  };
+
+  const openRenameProject = (proj) => {
+    setRenameProjForm({ _id: proj._id, name: proj.name, description: proj.description || '' });
+    setRenameProjModal(true);
+    setError('');
+  };
+
+  const renameProject = async (e) => {
+    e.preventDefault(); setError('');
+    try {
+      const { data } = await api.put(`/projects/${renameProjForm._id}`, {
+        name: renameProjForm.name,
+        description: renameProjForm.description,
+      });
+      setProjects(prev => ({
+        ...prev,
+        [activeWs]: prev[activeWs].map(p => p._id === data._id ? data : p),
+      }));
+      setRenameProjModal(false);
+    } catch (err) { setError(err.response?.data?.message || 'Failed'); }
+  };
+
+  const deleteProject = async (projId) => {
+    if (!confirm('Delete this project? All tasks inside will be lost permanently.')) return;
+    try {
+      await api.delete(`/projects/${projId}`);
+      setProjects(prev => ({
+        ...prev,
+        [activeWs]: prev[activeWs].filter(p => p._id !== projId),
+      }));
+    } catch (err) { alert(err.response?.data?.message || 'Failed'); }
+  };
+
+  const sendInvite = async (e) => {
+    e.preventDefault(); setError(''); setInviteSent(false);
+    try {
+      await api.post('/invitations', { email: inviteForm.email, workspaceId: activeWs, role: inviteForm.role });
+      setInviteSent(true); setInviteForm({ email: '', role: 'Member' });
+      fetchInvites(activeWs);
+    } catch (err) { setError(err.response?.data?.message || 'Failed'); }
+  };
+
   const changeMemberRole = async (userId, newRole) => {
     try {
       const { data } = await api.patch(`/workspaces/${activeWs}/members/${userId}/role`, { role: newRole });
       setWorkspaces(prev => prev.map(w => w._id === activeWs ? data.workspace : w));
     } catch (err) { alert(err.response?.data?.message || 'Failed to change role'); }
+  };
+
+  const removeMember = async (userId, memberName) => {
+    if (!confirm(`Remove ${memberName} from this workspace?`)) return;
+    try {
+      const { data } = await api.delete(`/workspaces/${activeWs}/members/${userId}`);
+      setWorkspaces(prev => prev.map(w => w._id === activeWs ? data.workspace : w));
+    } catch (err) { alert(err.response?.data?.message || 'Failed to remove member'); }
   };
 
   if (loading) return (
@@ -136,9 +203,7 @@ export default function Dashboard() {
       <Navbar />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* ── Dark Sidebar ──────────────────────────────────────────────────── */}
         <aside className="w-60 bg-[#161e2d] flex flex-col shrink-0">
-          {/* Sidebar header */}
           <div className="px-4 pt-5 pb-3">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Workspaces</span>
@@ -147,7 +212,6 @@ export default function Dashboard() {
                 +
               </button>
             </div>
-            {/* Workspace list */}
             <ul className="space-y-0.5">
               {workspaces.map(ws => (
                 <li key={ws._id}>
@@ -168,7 +232,6 @@ export default function Dashboard() {
             </ul>
           </div>
 
-          {/* Sidebar footer */}
           <div className="mt-auto px-4 pb-5 pt-3 border-t border-white/5">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-full bg-[#0073bb] flex items-center justify-center text-white text-xs font-bold shrink-0">
@@ -182,12 +245,10 @@ export default function Dashboard() {
           </div>
         </aside>
 
-        {/* ── Main content ──────────────────────────────────────────────────── */}
         <main className="flex-1 overflow-y-auto">
           {activeWorkspace ? (
             <div className="p-6 max-w-6xl mx-auto">
 
-              {/* Page header */}
               <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
                 <div>
                   <div className="flex items-center gap-2.5 mb-1">
@@ -199,7 +260,6 @@ export default function Dashboard() {
                   <p className="text-gray-500 text-sm">{activeWorkspace.description || 'No description'}</p>
                 </div>
 
-                {/* Actions — role-gated */}
                 <div className="flex items-center gap-2 flex-wrap">
                   {isOwner && (
                     <>
@@ -220,12 +280,16 @@ export default function Dashboard() {
                     </button>
                   )}
                   {isOwner && (
+                    <button onClick={openRenameWorkspace} className="btn-secondary text-xs">
+                      Rename
+                    </button>
+                  )}
+                  {isOwner && (
                     <button onClick={deleteWorkspace} className="btn-danger text-xs">Delete</button>
                   )}
                 </div>
               </div>
 
-              {/* Member info banner for Members */}
               {myRole === 'Member' && (
                 <div className="bg-[#0073bb]/5 border border-[#0073bb]/20 rounded-xl px-4 py-3 mb-5 text-sm text-[#0073bb] flex items-center gap-2">
                   <span className="shrink-0">ℹ️</span>
@@ -233,17 +297,14 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* Two-column layout: Members table + Projects */}
               <div className="grid grid-cols-1 xl:grid-cols-[300px_1fr] gap-6">
 
-                {/* Members panel */}
                 <div className="card overflow-hidden h-fit">
                   <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                     <h2 className="text-sm font-semibold text-gray-700">Members</h2>
                     <span className="text-xs text-gray-400">{1 + (activeWorkspace.members?.length || 0)}</span>
                   </div>
                   <div className="divide-y divide-gray-50">
-                    {/* Owner */}
                     <div className="flex items-center gap-3 px-4 py-3">
                       <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
                         {activeWorkspace.owner?.name?.[0]?.toUpperCase()}
@@ -255,8 +316,7 @@ export default function Dashboard() {
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 border border-purple-200 shrink-0">Owner</span>
                     </div>
 
-                    {/* Members */}
-                    {activeWorkspace.members?.map((m, i) => (
+                    {activeWorkspace.members?.map((m) => (
                       <div key={m.user?._id} className="flex items-center gap-3 px-4 py-3">
                         <div className="w-8 h-8 rounded-full bg-[#0073bb] text-white flex items-center justify-center text-sm font-bold shrink-0">
                           {m.user?.name?.[0]?.toUpperCase()}
@@ -276,6 +336,13 @@ export default function Dashboard() {
                         ) : (
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${ROLE_BADGE[m.role]}`}>{m.role}</span>
                         )}
+                        {isOwner && (
+                          <button onClick={() => removeMember(m.user?._id, m.user?.name)}
+                            title="Remove member"
+                            className="w-6 h-6 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-red-500 transition shrink-0">
+                            ✕
+                          </button>
+                        )}
                       </div>
                     ))}
                     {(!activeWorkspace.members || activeWorkspace.members.length === 0) && (
@@ -284,7 +351,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Projects */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h2 className="text-sm font-semibold text-gray-700">
@@ -305,25 +371,53 @@ export default function Dashboard() {
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {activeProjects.map(proj => (
-                        <button key={proj._id}
-                          onClick={() => navigate(`/board/${proj._id}?ws=${activeWs}`)}
-                          className="card p-5 text-left hover:border-[#0073bb]/40 hover:shadow-md transition-all duration-150 group">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0"
-                                 style={{ background: proj.color || '#0073bb' }}>
-                              {proj.name[0].toUpperCase()}
+                        <div key={proj._id} className="card p-5 relative group hover:border-[#0073bb]/40 hover:shadow-md transition-all duration-150">
+                          <button onClick={() => navigate(`/board/${proj._id}?ws=${activeWs}`)}
+                            className="text-left w-full">
+                            <div className="flex items-start justify-between mb-3 pr-7">
+                              <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0"
+                                   style={{ background: proj.color || '#0073bb' }}>
+                                {proj.name[0].toUpperCase()}
+                              </div>
+                              <svg className="w-4 h-4 text-gray-300 group-hover:text-[#0073bb] transition mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
                             </div>
-                            <svg className="w-4 h-4 text-gray-300 group-hover:text-[#0073bb] transition mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                          </div>
-                          <h3 className="font-semibold text-gray-900 text-sm mb-1 group-hover:text-[#0073bb] transition">{proj.name}</h3>
-                          <p className="text-xs text-gray-400 line-clamp-2">{proj.description || 'No description'}</p>
-                          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-1.5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-400"/>
-                            <span className="text-xs text-gray-400">Open board</span>
-                          </div>
-                        </button>
+                            <h3 className="font-semibold text-gray-900 text-sm mb-1 group-hover:text-[#0073bb] transition">{proj.name}</h3>
+                            <p className="text-xs text-gray-400 line-clamp-2">{proj.description || 'No description'}</p>
+                            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-1.5">
+                              <div className="w-1.5 h-1.5 rounded-full bg-green-400"/>
+                              <span className="text-xs text-gray-400">Open board</span>
+                            </div>
+                          </button>
+
+                          {canManageProjects && (
+                            <div className="absolute top-3 right-3" onClick={e => e.stopPropagation()}>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setProjectMenuOpen(projectMenuOpen === proj._id ? null : proj._id); }}
+                                className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 transition"
+                              >
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                  <circle cx="12" cy="5" r="1.8" />
+                                  <circle cx="12" cy="12" r="1.8" />
+                                  <circle cx="12" cy="19" r="1.8" />
+                                </svg>
+                              </button>
+                              {projectMenuOpen === proj._id && (
+                                <div className="absolute right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 w-32 z-20">
+                                  <button onClick={(e) => { e.stopPropagation(); openRenameProject(proj); setProjectMenuOpen(null); }}
+                                    className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">
+                                    Rename
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); deleteProject(proj._id); setProjectMenuOpen(null); }}
+                                    className="w-full text-left px-3 py-1.5 text-xs text-red-500 hover:bg-red-50">
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}
@@ -345,9 +439,6 @@ export default function Dashboard() {
         </main>
       </div>
 
-      {/* ── Modals ────────────────────────────────────────────────────────────── */}
-
-      {/* Create Workspace */}
       {showWsModal && (
         <Modal title="Create Workspace" onClose={() => setShowWsModal(false)}>
           <form onSubmit={createWorkspace} className="space-y-3">
@@ -367,7 +458,27 @@ export default function Dashboard() {
         </Modal>
       )}
 
-      {/* Create Project */}
+      {renameWsModal && (
+        <Modal title="Rename Workspace" onClose={() => setRenameWsModal(false)}>
+          <form onSubmit={renameWorkspace} className="space-y-3">
+            {error && <p className="text-red-500 text-sm">{error}</p>}
+            <div>
+              <label className="label">Workspace name</label>
+              <input required className="input"
+                value={renameWsForm.name}
+                onChange={e => setRenameWsForm({ ...renameWsForm, name: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">Description</label>
+              <textarea className="input" rows={2}
+                value={renameWsForm.description}
+                onChange={e => setRenameWsForm({ ...renameWsForm, description: e.target.value })} />
+            </div>
+            <button type="submit" className="btn-primary w-full">Save Changes</button>
+          </form>
+        </Modal>
+      )}
+
       {showProjModal && (
         <Modal title="New Project" onClose={() => setShowProjModal(false)}>
           <form onSubmit={createProject} className="space-y-3">
@@ -387,7 +498,27 @@ export default function Dashboard() {
         </Modal>
       )}
 
-      {/* Send Invite */}
+      {renameProjModal && (
+        <Modal title="Rename Project" onClose={() => setRenameProjModal(false)}>
+          <form onSubmit={renameProject} className="space-y-3">
+            {error && <p className="text-red-500 text-sm">{error}</p>}
+            <div>
+              <label className="label">Project name</label>
+              <input required className="input"
+                value={renameProjForm.name}
+                onChange={e => setRenameProjForm({ ...renameProjForm, name: e.target.value })} />
+            </div>
+            <div>
+              <label className="label">Description</label>
+              <textarea className="input" rows={2}
+                value={renameProjForm.description}
+                onChange={e => setRenameProjForm({ ...renameProjForm, description: e.target.value })} />
+            </div>
+            <button type="submit" className="btn-primary w-full">Save Changes</button>
+          </form>
+        </Modal>
+      )}
+
       {showInvite && (
         <Modal title="Invite Member" onClose={() => { setShowInvite(false); setInviteSent(false); setError(''); }}>
           {inviteSent ? (
@@ -431,7 +562,6 @@ export default function Dashboard() {
         </Modal>
       )}
 
-      {/* Invitation list */}
       {showInviteList && (
         <Modal title="Sent Invitations" onClose={() => setShowInviteList(false)}>
           <div className="space-y-2 max-h-72 overflow-y-auto">

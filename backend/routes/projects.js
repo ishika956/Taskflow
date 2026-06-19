@@ -25,17 +25,19 @@ router.post('/', async (req, res) => {
   try {
     const { name, description, workspace, color } = req.body;
     if (!name || !workspace) return res.status(400).json({ message: 'Name and workspace required' });
-
     const role = await getUserRole(workspace, req.user._id);
     if (!role) return res.status(403).json({ message: 'Not a workspace member' });
-
-    if (role === 'Member') {
-      return res.status(403).json({ message: 'Members cannot create projects' });
-    }
+    if (role === 'Member') return res.status(403).json({ message: 'Members cannot create projects' });
 
     const project = await Project.create({ name, description, workspace, color, createdBy: req.user._id });
     res.status(201).json(project);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) {
+    // ADD THIS
+    if (err.code === 11000) {
+      return res.status(409).json({ message: 'A project with this name already exists in this workspace' });
+    }
+    res.status(500).json({ message: err.message });
+  }
 });
 
 // ── PUT /api/projects/:id ─── Only Owner, Admin, Manager

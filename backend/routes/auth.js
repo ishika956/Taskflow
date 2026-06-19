@@ -14,7 +14,12 @@ router.post('/register', async (req, res) => {
   const schema = z.object({
     name:     z.string().min(2),
     email:    z.string().email(),
-    password: z.string().min(6),
+    password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[a-z]/, 'Password must contain a lowercase letter')
+    .regex(/[A-Z]/, 'Password must contain an uppercase letter')
+    .regex(/[0-9]/, 'Password must contain a number')
+    .regex(/[^a-zA-Z0-9]/, 'Password must contain a special character'),
   });
   const result = schema.safeParse(req.body);
   if (!result.success) return res.status(400).json({ message: result.error.errors[0].message });

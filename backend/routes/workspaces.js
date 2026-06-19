@@ -25,7 +25,13 @@ router.post('/', async (req, res) => {
       name, description, owner: req.user._id, members: [],
     });
     res.status(201).json(workspace);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) {
+    // ADD THIS: MongoDB duplicate key error code is 11000
+    if (err.code === 11000) {
+      return res.status(409).json({ message: 'A workspace with this name already exists' });
+    }
+    res.status(500).json({ message: err.message });
+  }
 });
 
 // POST /api/workspaces/:id/invite — invite member by email
@@ -65,15 +71,29 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/workspaces/:id
-router.delete('/:id', async (req, res) => {
+// DELETE /api/workspaces/:id/members/:userId — Owner removes a member
+router.delete('/:id/members/:userId', async (req, res) => {
   try {
     const workspace = await Workspace.findById(req.params.id);
-    if (!workspace) return res.status(404).json({ message: 'Not found' });
+    if (!workspace) return res.status(404).json({ message: 'Workspace not found' });
+
+    // Only the Owner can remove members
     if (workspace.owner.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Only the owner can delete this workspace' });
+      return res.status(403).json({ message: 'Only the workspace owner can remove members' });
     }
-    await workspace.deleteOne();
-    res.json({ message: 'Workspace deleted' });
+
+    const before = workspace.members.length;
+    workspace.members = workspace.members.filter(
+      m => m.user.toString() !== req.params.userId
+    );
+
+    if (workspace.members.length === before) {
+      return res.status(404).json({ message: 'Member not found in this workspace' });
+    }
+
+    await workspace.save();
+    await workspace.populate('members.user', 'name email');
+    res.json({ message: 'Member removed', workspace });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });
 
