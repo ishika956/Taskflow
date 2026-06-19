@@ -15,7 +15,7 @@ const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowed = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|txt|zip/;
+    const allowed = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|txt|zip|js|jsx|ts|tsx|json|css|html|md/;
     const ok = allowed.test(path.extname(file.originalname).toLowerCase());
     ok ? cb(null, true) : cb(new Error('File type not allowed'));
   },
