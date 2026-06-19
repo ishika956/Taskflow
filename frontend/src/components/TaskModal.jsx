@@ -132,7 +132,7 @@ export default function TaskModal({ task, workspaceId, onClose, onUpdated, onDel
                 <label className="label">Attachments</label>
                 <div className="space-y-1 mb-2">
                   {form.attachments?.map((a, i) => (
-                    <a key={i} href={`http://localhost:5000/uploads/${a.filename}`}
+                    <a key={i} href={`${import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000'}/uploads/${a.filename}`}
                       target="_blank" rel="noreferrer"
                       className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
                       📎 {a.originalName}

@@ -17,7 +17,7 @@ export default function Board() {
 
   useEffect(() => {
     fetchProject();
-    const s = io('http://localhost:5000');
+    const s = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000');
     s.on('connect',    () => { setSocketId(s.id); window.__socketId = s.id; });
     s.on('disconnect', () => { setSocketId(null); window.__socketId = null; });
     setSocket(s);
